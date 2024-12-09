@@ -4,7 +4,7 @@ use sysinfo::{System, MINIMUM_CPU_UPDATE_INTERVAL};
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 300.0]),
+            .with_inner_size([600.0, 450.0]),
             ..Default::default()
     };
 
@@ -51,11 +51,9 @@ impl eframe::App for SysApp {
         self.get_mem_usage();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(format!("CPU: {:.1}%", self.cpu_usage));
-            });
-            ui.horizontal(|ui| {
-                ui.label(format!("Memory: {:.1}%", self.mem_usage));
+            ui.vertical_centered_justified(|ui| {
+                ui.heading(format!("CPU: {:.1}%", self.cpu_usage));
+                ui.heading(format!("Memory: {:.1}%", self.mem_usage));
             });
         });
     }
