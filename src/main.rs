@@ -65,7 +65,7 @@ impl eframe::App for SysApp {
                     .show(ui, |ui| {
                         ui.vertical(|ui| {
                             ui.heading("CPU");
-                            ui.label(format!("Total Usage: {:.1}%", self.cpu_usage));
+                            ui.label(format!("Total usage: {:.1}%", self.cpu_usage));
                             for (i, core) in self.core_usage.iter().enumerate() {
                                 ui.label(format!("Core {}: {:.1}%", i, core));
                             };
@@ -78,7 +78,9 @@ impl eframe::App for SysApp {
                     .inner_margin(egui::Margin::same(10.0))
                     .show(ui, |ui| {
                         ui.vertical(|ui| {
-                            ui.heading(format!("Memory: {:.1}%", self.mem_usage));
+                            ui.heading("Memory");
+                            ui.label(format!("Total usage: {:.1}%", self.mem_usage));
+                            ui.label(format!("Usage in GB: {:.1}GBs", self.mem_gbs));
                         });
                     });
             });
@@ -97,6 +99,9 @@ impl SysApp {
         self.cpu_usage = self.core_usage.iter().sum::<f32>() / self.core_usage.len() as f32;
         let used = self.sys.used_memory();
         let total = self.sys.total_memory();
+        let used_gbs = used as f32 / (1024.0 * 1024.0 * 1024.0);
+        let total_gbs = total as f32 / (1024.0 * 1024.0 * 1024.0);
+        self.mem_gbs = (used_gbs / total_gbs) * 100.0;
         self.mem_usage = (used as f32/ total as f32) * 100.0;
     }
 }
