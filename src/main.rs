@@ -11,7 +11,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Sys Monitor",
         options,
-        Box::new(|cc| {
+        Box::new(|_cc| {
             Ok(Box::new(SysApp::default()))
         }),
     )
