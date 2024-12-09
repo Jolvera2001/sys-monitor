@@ -1,4 +1,5 @@
 use std::time::Instant;
+
 use sysinfo::{System, MINIMUM_CPU_UPDATE_INTERVAL};
 
 fn main() -> Result<(), eframe::Error> {
@@ -19,23 +20,27 @@ fn main() -> Result<(), eframe::Error> {
 
 // App Struct
 struct SysApp {
-    last_cpu_update: std::time::Instant,
-    last_mem_update: std::time::Instant,
     sys: System,
     cpu_usage: f32,
+    core_usage: Vec<f32>,
     mem_usage: f32,
+    mem_gbs: f32,
+    last_update: std::time::Instant,
+
 }
 
 impl Default for SysApp {
     fn default() -> Self {
         let mut sys = System::new_all();
+        let core_usage = sys.cpus().iter().map(|cpu|cpu.cpu_usage()).collect();
         sys.refresh_all(); 
         Self {
-            last_cpu_update: Instant::now(),
-            last_mem_update: Instant::now(),
             sys,
+            core_usage,
             cpu_usage: 0.0,
             mem_usage: 0.0,
+            mem_gbs: 0.0,
+            last_update: Instant::now(),
         }
     }
 }
@@ -43,17 +48,39 @@ impl Default for SysApp {
 // UI for updates
 impl eframe::App for SysApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // so the ui updates at this interval
-        ctx.request_repaint_after(MINIMUM_CPU_UPDATE_INTERVAL);
+        ctx.request_repaint();
 
-        // to make sure we have a starting update to draw from (documentation says so)
-        self.get_cpu_usage();
-        self.get_mem_usage();
+        if self.last_update.elapsed() >= MINIMUM_CPU_UPDATE_INTERVAL + std::time::Duration::from_secs(1) {
+            self.get_base_usage();
+            self.last_update = Instant::now();
+        }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.vertical_centered_justified(|ui| {
-                ui.heading(format!("CPU: {:.1}%", self.cpu_usage));
-                ui.heading(format!("Memory: {:.1}%", self.mem_usage));
+        egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
+            ui.horizontal_top(|ui| {
+                egui::Frame::none()
+                    .fill(egui::Color32::from_gray(32))
+                    .rounding(8.0)
+                    .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(100)))
+                    .inner_margin(egui::Margin::same(10.0))
+                    .show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            ui.heading("CPU");
+                            ui.label(format!("Total Usage: {:.1}%", self.cpu_usage));
+                            for (i, core) in self.core_usage.iter().enumerate() {
+                                ui.label(format!("Core {}: {:.1}%", i, core));
+                            };
+                        });
+                    });
+                egui::Frame::none()
+                    .fill(egui::Color32::from_gray(32))
+                    .rounding(8.0)
+                    .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(100)))
+                    .inner_margin(egui::Margin::same(10.0))
+                    .show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            ui.heading(format!("Memory: {:.1}%", self.mem_usage));
+                        });
+                    });
             });
         });
     }
@@ -61,34 +88,15 @@ impl eframe::App for SysApp {
 
 // helper functions
 impl SysApp {
-    fn get_cpu_usage(&mut self) {
-        if self.should_update_cpu() { // if enough time has passed
-            self.last_cpu_update = Instant::now();
-            self.sys.refresh_cpu_usage();
-            let mut total = 0.0;
-            for cpu in self.sys.cpus() {
-                total += cpu.cpu_usage();
-            }
-            self.cpu_usage = total / self.sys.cpus().len() as f32
-        }
-    }
+    fn get_base_usage(&mut self) {
+        // refreshing
+        self.sys.refresh_cpu_all();
+        self.sys.refresh_memory();
 
-    fn get_mem_usage(&mut self) {
-        if self.should_update_mem() {
-            self.last_mem_update = Instant::now();
-            self.sys.refresh_memory();
-            let used = self.sys.used_memory();
-            let total = self.sys.total_memory();
-            // println!("Used: {}, Total: {}", used, total); // Debug
-            self.mem_usage = (used as f32 / total as f32) * 100.0
-        }
-    }
-
-    fn should_update_cpu(&mut self) -> bool {
-        self.last_cpu_update.elapsed() >= MINIMUM_CPU_UPDATE_INTERVAL
-    }
-
-    fn should_update_mem(&mut self) -> bool {
-        self.last_mem_update.elapsed() >= MINIMUM_CPU_UPDATE_INTERVAL
+        self.core_usage = self.sys.cpus().iter().map(|cpu| cpu.cpu_usage()).collect();
+        self.cpu_usage = self.core_usage.iter().sum::<f32>() / self.core_usage.len() as f32;
+        let used = self.sys.used_memory();
+        let total = self.sys.total_memory();
+        self.mem_usage = (used as f32/ total as f32) * 100.0;
     }
 }
