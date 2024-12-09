@@ -81,7 +81,7 @@ impl SysApp {
             self.sys.refresh_memory();
             let used = self.sys.used_memory();
             let total = self.sys.total_memory();
-            println!("Used: {}, Total: {}", used, total); // Debug
+            // println!("Used: {}, Total: {}", used, total); // Debug
             self.mem_usage = (used as f32 / total as f32) * 100.0
         }
     }
