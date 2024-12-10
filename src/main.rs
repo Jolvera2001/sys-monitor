@@ -2,6 +2,13 @@ use std::time::Instant;
 
 use sysinfo::{System, MINIMUM_CPU_UPDATE_INTERVAL};
 
+#[derive(Default)]
+struct MemGbs {
+    used: f32,
+    total: f32,
+}
+
+
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -24,7 +31,7 @@ struct SysApp {
     cpu_usage: f32,
     core_usage: Vec<f32>,
     mem_usage: f32,
-    mem_gbs: f32,
+    mem_gbs: MemGbs,
     last_update: std::time::Instant,
 
 }
@@ -39,7 +46,7 @@ impl Default for SysApp {
             core_usage,
             cpu_usage: 0.0,
             mem_usage: 0.0,
-            mem_gbs: 0.0,
+            mem_gbs: MemGbs::default(),
             last_update: Instant::now(),
         }
     }
@@ -80,7 +87,7 @@ impl eframe::App for SysApp {
                         ui.vertical(|ui| {
                             ui.heading("Memory");
                             ui.label(format!("Total usage: {:.1}%", self.mem_usage));
-                            ui.label(format!("Usage in GB: {:.1}GBs", self.mem_gbs));
+                            ui.label(format!("Usage in GB: {:.1}GBs / {:.1}GBs", self.mem_gbs.used, self.mem_gbs.total));
                         });
                     });
             });
@@ -101,7 +108,8 @@ impl SysApp {
         let total = self.sys.total_memory();
         let used_gbs = used as f32 / (1024.0 * 1024.0 * 1024.0);
         let total_gbs = total as f32 / (1024.0 * 1024.0 * 1024.0);
-        self.mem_gbs = (used_gbs / total_gbs) * 100.0;
+        self.mem_gbs.used = used_gbs;
+        self.mem_gbs.total = total_gbs;
         self.mem_usage = (used as f32/ total as f32) * 100.0;
     }
 }
