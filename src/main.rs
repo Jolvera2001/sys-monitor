@@ -1,6 +1,10 @@
 use std::{collections::HashMap, time::Instant};
 use sysinfo::{Pid, System, MINIMUM_CPU_UPDATE_INTERVAL};
 
+mod theme;
+
+use theme::MainTheme;
+
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 600.0]),
@@ -58,6 +62,9 @@ impl Default for SysApp {
 // UI for updates
 impl eframe::App for SysApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let mut theme = MainTheme::new(ctx);
+        theme.set_theme();
+
         ctx.request_repaint();
 
         if self.last_update.elapsed()
