@@ -3,7 +3,7 @@ use sysinfo::{Pid, System, MINIMUM_CPU_UPDATE_INTERVAL};
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([600.0, 450.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 600.0]),
         ..Default::default()
     };
 
@@ -69,8 +69,9 @@ impl eframe::App for SysApp {
 
         egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
             // general info
-            ui.vertical_centered_justified(|ui| {
-                ui.horizontal_top(|ui| {
+            ui.add_space(ui.available_height() * 0.01);
+            ui.centered_and_justified(|ui| {
+                ui.horizontal(|ui| {
                     egui::Frame::none()
                         .fill(egui::Color32::from_gray(32))
                         .rounding(8.0)
@@ -85,6 +86,9 @@ impl eframe::App for SysApp {
                                 }
                             });
                         });
+
+                    ui.add_space(8.0);
+
                     egui::Frame::none()
                         .fill(egui::Color32::from_gray(32))
                         .rounding(8.0)
@@ -104,15 +108,36 @@ impl eframe::App for SysApp {
             });
 
             // Process List
-            ui.vertical_centered_justified(|ui| {
-                for (pid, process) in self.proc_map.iter() {
-                    ui.horizontal(|ui| {
-                        ui.label(format!("{}: {}", process.name, pid));
-                        ui.label(format!("CPU Usage: {:.1}%", process.cpu_usage));
-                        ui.label(format!("Memory Usage: {:.1}MBs", process.mem_usage));
+            egui::Frame::none()
+                .fill(egui::Color32::from_gray(32))
+                .rounding(8.0)
+                .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(100)))
+                .inner_margin(egui::Margin::same(10.0))
+                .show(ui, |ui| {
+                    ui.heading("Processes");
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        egui::Grid::new("process_grid")
+                            .num_columns(4)
+                            .spacing([40.0, 4.0])
+                            .striped(true)
+                            .show(ui, |ui| {
+                                // headers
+                                ui.strong("Name");
+                                ui.strong("PID");
+                                ui.strong("CPU Usage");
+                                ui.strong("Memory Usage");
+                                ui.end_row();
+
+                                for (pid, process) in self.proc_map.iter() {
+                                    ui.label(process.name.clone());
+                                    ui.label(pid.to_string());
+                                    ui.label(format!("{:.1}%", process.cpu_usage));
+                                    ui.label(format!("{:.1}MBs", process.mem_usage));
+                                    ui.end_row();
+                                }
+                            });
                     });
-                }
-            })
+                });
         });
     }
 }
