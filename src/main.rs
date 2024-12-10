@@ -20,23 +20,11 @@ struct MemGbs {
     total: f32,
 }
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 struct ProcessInfo {
-    pid: Pid,
     name: String,
     cpu_usage: f32,
     mem_usage: f32,
-}
-
-impl Default for ProcessInfo {
-    fn default() -> Self {
-        Self {
-            pid: Pid::from(0),
-            name: String::new(),
-            cpu_usage: 0.0,
-            mem_usage: 0.0,
-        }
-    }
 }
 
 // App Struct
@@ -46,7 +34,7 @@ struct SysApp {
     core_usage: Vec<f32>,
     mem_usage: f32,
     mem_gbs: MemGbs,
-    proc_Map: HashMap<Pid, ProcessInfo>,
+    proc_map: HashMap<Pid, ProcessInfo>,
     last_update: std::time::Instant,
 }
 
@@ -61,7 +49,7 @@ impl Default for SysApp {
             cpu_usage: 0.0,
             mem_usage: 0.0,
             mem_gbs: MemGbs::default(),
-            procMap: HashMap::new(),
+            proc_map: HashMap::new(),
             last_update: Instant::now(),
         }
     }
@@ -116,7 +104,15 @@ impl eframe::App for SysApp {
             });
 
             // Process List
-            ui.vertical_centered_justified(|ui| {})
+            ui.vertical_centered_justified(|ui| {
+                for (pid, process) in self.proc_map.iter() {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{}: {}", process.name, pid));
+                        ui.label(format!("CPU Usage: {:.1}%", process.cpu_usage));
+                        ui.label(format!("Memory Usage: {:.1}MBs", process.mem_usage));
+                    });
+                }
+            })
         });
     }
 }
@@ -139,7 +135,7 @@ impl SysApp {
         self.mem_gbs.total = total_gbs;
         self.mem_usage = (used as f32 / total as f32) * 100.0;
 
-        self.procMap = self
+        self.proc_map = self
             .sys
             .processes()
             .iter()
@@ -147,7 +143,6 @@ impl SysApp {
                 (
                     *pid,
                     ProcessInfo {
-                        pid: *pid,
                         name: proc.name().to_string_lossy().to_string(),
                         cpu_usage: proc.cpu_usage(),
                         mem_usage: proc.memory() as f32 / (1024.0 * 1024.0),
