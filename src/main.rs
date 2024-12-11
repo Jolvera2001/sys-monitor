@@ -1,8 +1,11 @@
-use std::{collections::HashMap, time::Instant};
-use sysinfo::{Pid, System, MINIMUM_CPU_UPDATE_INTERVAL};
+use egui_plot::{Line, Plot, PlotPoints};
+use std::time::Instant;
+use sysinfo::{Pid, ProcessesToUpdate, System, MINIMUM_CPU_UPDATE_INTERVAL};
 
+mod metrics;
 mod theme;
 
+use metrics::SystemMetrics;
 use theme::MainTheme;
 
 fn main() -> Result<(), eframe::Error> {
@@ -24,8 +27,9 @@ struct MemGbs {
     total: f32,
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 struct ProcessInfo {
+    pid: Pid,
     name: String,
     cpu_usage: f32,
     mem_usage: f32,
@@ -34,11 +38,12 @@ struct ProcessInfo {
 // App Struct
 struct SysApp {
     sys: System,
+    metrics: SystemMetrics,
     cpu_usage: f32,
     core_usage: Vec<f32>,
     mem_usage: f32,
     mem_gbs: MemGbs,
-    proc_map: HashMap<Pid, ProcessInfo>,
+    proc_list: Vec<ProcessInfo>,
     last_update: std::time::Instant,
 }
 
@@ -49,11 +54,12 @@ impl Default for SysApp {
         sys.refresh_all();
         Self {
             sys,
+            metrics: SystemMetrics::new(50),
             core_usage,
             cpu_usage: 0.0,
             mem_usage: 0.0,
             mem_gbs: MemGbs::default(),
-            proc_map: HashMap::new(),
+            proc_list: Vec::new(),
             last_update: Instant::now(),
         }
     }
@@ -111,6 +117,18 @@ impl eframe::App for SysApp {
                                 ));
                             });
                         });
+
+                    egui::Frame::none()
+                        .fill(egui::Color32::from_gray(32))
+                        .rounding(8.0)
+                        .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(100)))
+                        .inner_margin(egui::Margin::same(10.0))
+                        .show(ui, |ui| {
+                            ui.vertical(|ui| {
+                                ui.heading("Metrics");
+                                self.draw_graphs(ui);
+                            });
+                        });
                 });
             });
 
@@ -121,7 +139,7 @@ impl eframe::App for SysApp {
                 .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(100)))
                 .inner_margin(egui::Margin::same(10.0))
                 .show(ui, |ui| {
-                    ui.heading("Processes");
+                    ui.heading(format!("Processes ({})", self.proc_list.len()));
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         egui::Grid::new("process_grid")
                             .num_columns(4)
@@ -135,10 +153,10 @@ impl eframe::App for SysApp {
                                 ui.strong("Memory Usage");
                                 ui.end_row();
 
-                                for (pid, process) in self.proc_map.iter() {
+                                for process in self.proc_list.iter() {
                                     ui.label(process.name.clone());
-                                    ui.label(pid.to_string());
-                                    ui.label(format!("{:.1}%", process.cpu_usage));
+                                    ui.label(process.pid.to_string());
+                                    ui.label("N/A");
                                     ui.label(format!("{:.1}MBs", process.mem_usage));
                                     ui.end_row();
                                 }
@@ -155,6 +173,7 @@ impl SysApp {
         // refreshing
         self.sys.refresh_cpu_all();
         self.sys.refresh_memory();
+        self.sys.refresh_processes(ProcessesToUpdate::All, true);
 
         self.core_usage = self.sys.cpus().iter().map(|cpu| cpu.cpu_usage()).collect();
         self.cpu_usage = self.core_usage.iter().sum::<f32>() / self.core_usage.len() as f32;
@@ -167,20 +186,48 @@ impl SysApp {
         self.mem_gbs.total = total_gbs;
         self.mem_usage = (used as f32 / total as f32) * 100.0;
 
-        self.proc_map = self
+        self.proc_list = self
             .sys
             .processes()
             .iter()
-            .map(|(pid, proc)| {
-                (
-                    *pid,
-                    ProcessInfo {
-                        name: proc.name().to_string_lossy().to_string(),
-                        cpu_usage: proc.cpu_usage(),
-                        mem_usage: proc.memory() as f32 / (1024.0 * 1024.0),
-                    },
-                )
+            .map(|(pid, proc)| ProcessInfo {
+                pid: *pid,
+                name: proc.name().to_string_lossy().to_string(),
+                cpu_usage: proc.cpu_usage() * 100.0,
+                mem_usage: proc.memory() as f32 / (1024.0 * 1024.0),
             })
             .collect();
+
+        self.proc_list.sort_by(|a, b| {
+            b.mem_usage
+                .partial_cmp(&a.mem_usage)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        self.metrics.add_measurement(self.cpu_usage, self.mem_usage);
+    }
+
+    pub fn draw_graphs(&self, ui: &mut egui::Ui) {
+        Plot::new("System Metrics")
+            .height(200.0)
+            .show(ui, |plot_ui| {
+                let cpu_points: PlotPoints = self
+                    .metrics
+                    .cpu_history
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &cpu)| [i as f64, cpu as f64])
+                    .collect();
+                plot_ui.line(Line::new(cpu_points).name("CPU Usage"));
+
+                let mem_points: PlotPoints = self
+                    .metrics
+                    .mem_history
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &mem)| [i as f64, mem as f64])
+                    .collect();
+                plot_ui.line(Line::new(mem_points).name("Memory Usage"));
+            });
     }
 }

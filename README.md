@@ -24,9 +24,9 @@ This is just a small amount of stuff I want to do:
     - [ ] Color Coding
     - [ ] Pretty Layout
     - [ ] Different themes
-- [ ] Graphs
-    - [ ] CPU usage (total)
-    - [ ] Memory Usage (total)
+- [x] Graphs
+    - [x] CPU usage (total)
+    - [x] Memory Usage (total)
 - [ ] Future stuff
     - [ ] Networking related stats
     - [ ] Disk related Stats
