@@ -6,14 +6,24 @@ This is just another practice for me to use more EGUI and get my feet wet in rus
 
 This is just a small amount of stuff I want to do:
 
-- [ ] CPU Usage
+- [x] CPU Usage
     - [x] Total Percentage
-    - [ ] Each core usage
-- [ ] Memory usage
+    - [x] Each core usage
+- [x] Memory usage
     - [x] Total Memory Usage
-    - [ ] Memory usage in GBs
+    - [x] Memory usage in GBs
+- [ ] Task Viewer
+    - [x] List of tasks
+    - [ ] CPU usage of each task
+    - [x] Memory usage of each task
+    - [ ] Kill task
+    - [ ] Task sorting (by cpu, mem, etc.)
 - [ ] Styling
+    - [x] Added styling struct
+    - [ ] Icons
     - [ ] Color Coding
+    - [ ] Pretty Layout
+    - [ ] Different themes
 - [ ] Graphs
     - [ ] CPU usage (total)
     - [ ] Memory Usage (total)
